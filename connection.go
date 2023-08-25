@@ -23,8 +23,12 @@ func NewConnection(ps PubSub) *Connection {
 	return c
 }
 
-func (c *Connection) Run(mode Mode) error {
-	return c.pubsubMechanism.Connect(mode)
+func (c *Connection) RunAsServer(network, listerAddr string) error {
+	return c.pubsubMechanism.RunAsServer(network, listerAddr)
+}
+
+func (c *Connection) RunAsClient(network, remoteAddr string) error {
+	return c.pubsubMechanism.RunAsClient(network, remoteAddr)
 }
 
 // Close pub/sub connection.
@@ -57,6 +61,8 @@ func (c *Connection) NewTopic(ctx context.Context, topic string, autoAck bool) (
 	t.autoAck = autoAck
 	t.topic = topic
 	t.ctx = ctx
+	t.pub = c.pubsubMechanism.Publisher()
+	t.sub = c.pubsubMechanism.Subscriber()
 
 	subCh, err := t.sub.Subscribe(ctx, topic)
 	if err != nil {
