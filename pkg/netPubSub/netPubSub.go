@@ -1,7 +1,6 @@
 package netpubsub
 
 import (
-	"context"
 	"crypto/tls"
 	"errors"
 	"time"
@@ -18,7 +17,7 @@ type Config struct {
 	ReconnectionConfig *ReconnectionConfig
 	WaitAck            bool
 	KeepAlive          time.Duration
-	TlsConfig          *tls.Config
+	TlsConfig          *tls.Config // NOTICE! Set SeverName or skip CA verifying
 	Log                watermill.LoggerAdapter
 	RWTimeout          time.Duration
 }
@@ -95,7 +94,10 @@ func (nps *NetPubSub) RunAsServer(network, listerAddr string) error {
 		return err
 	}
 
-	conn = connection.NewReconnectListenerWrapper(context.Background(), conn, nps.config.Log, nps.config.RWTimeout, l)
+	if nps.config.ReconnectionConfig != nil {
+		conn = connection.NewReconnectListenerWrapper(nps.config.ReconnectionConfig.Ctx, conn, nps.config.Log,
+			nps.config.RWTimeout, l)
+	}
 
 	nps.pub.SetConnection(conn)
 

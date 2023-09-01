@@ -101,7 +101,7 @@ func (t *Topic) consume(ch <-chan *message.Message) {
 	}
 }
 
-// ConsumeSingle consume new single message from topic.
+// ConsumeSingle consume new single message from topic channel.
 func (t *Topic) ConsumeSingle() *message.Message {
 	return <-t.readCh
 }

@@ -11,9 +11,11 @@ import (
 	"github.com/ThreeDotsLabs/watermill/message"
 	watermillnet "github.com/andyollylarkin/watermill-net"
 	wmnetPkg "github.com/andyollylarkin/watermill-net/pkg"
+	"github.com/andyollylarkin/watermill-net/pkg/connection"
 	connectionhelpers "github.com/andyollylarkin/watermill-net/pkg/helpers/connectionHelpers"
 	watermillpubsub "github.com/andyollylarkin/watermill-pub-sub"
 	netpubsub "github.com/andyollylarkin/watermill-pub-sub/pkg/netPubSub"
+	"github.com/sethvargo/go-retry"
 )
 
 func main() {
@@ -39,8 +41,15 @@ func main() {
 		TlsConfig: &tls.Config{
 			Certificates: cert,
 		},
-		Log: logger,
-		RWTimeout: time.Second*5,
+		ReconnectionConfig: &netpubsub.ReconnectionConfig{
+			Ctx:       context.Background(),
+			Backoff:   retry.NewConstant(time.Second * 5),
+			Log:       logger,
+			ErrFilter: connection.DefaultErrorFilter,
+			RWTimeout: time.Second * 5,
+		},
+		Log:       logger,
+		RWTimeout: time.Second * 5,
 	}
 
 	nps, err := netpubsub.NewNetPubSub(config)
