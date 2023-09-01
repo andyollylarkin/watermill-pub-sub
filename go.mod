@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/ThreeDotsLabs/watermill v1.3.3
-	github.com/andyollylarkin/watermill-net v0.1.6
+	github.com/andyollylarkin/watermill-net v0.1.8
 	github.com/sethvargo/go-retry v0.2.4
 )
 
