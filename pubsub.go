@@ -4,13 +4,6 @@ import (
 	"github.com/ThreeDotsLabs/watermill/message"
 )
 
-type Mode byte
-
-const (
-	ServerMode Mode = iota
-	ClientMode
-)
-
 // PubSub represent bidirectional pub/sub interface for watermill publishers/subscribers.
 type PubSub interface {
 	// Publisher get publisher.

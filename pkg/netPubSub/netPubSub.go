@@ -1,47 +1,47 @@
 package netpubsub
 
 import (
+	"context"
+	"crypto/tls"
 	"errors"
 	"time"
 
+	"github.com/ThreeDotsLabs/watermill"
 	"github.com/ThreeDotsLabs/watermill/message"
 	watermillnet "github.com/andyollylarkin/watermill-net"
-	watermillpubsub "github.com/andyollylarkin/watermill-pub-sub"
+	connection "github.com/andyollylarkin/watermill-net/pkg/connection"
 )
 
-type PublisherConfig struct {
+type Config struct {
 	watermillnet.PublisherConfig
-	ReconnectionConfig *ReconnectionConfig
-	KeepAlive          time.Duration
-	WaitAck            bool
-}
-
-type SubscriberConfig struct {
 	watermillnet.SubscriberConfig
+	ReconnectionConfig *ReconnectionConfig
+	WaitAck            bool
+	KeepAlive          time.Duration
+	TlsConfig          *tls.Config
+	Log                watermill.LoggerAdapter
+	RWTimeout          time.Duration
 }
 
 type NetPubSub struct {
-	pub              *watermillnet.Publisher
-	sub              *watermillnet.Subscriber
-	mode             watermillpubsub.Mode
-	publisherConfig  PublisherConfig
-	subscriberConfig SubscriberConfig
-	started          bool
+	pub     *watermillnet.Publisher
+	sub     *watermillnet.Subscriber
+	config  Config
+	started bool
 }
 
-func NewNetPubSub(pConfig PublisherConfig, sConfig SubscriberConfig) (*NetPubSub, error) {
+func NewNetPubSub(config Config) (*NetPubSub, error) {
 	ps := new(NetPubSub)
-	ps.publisherConfig = pConfig
-	ps.subscriberConfig = sConfig
+	ps.config = config
 
-	p, err := watermillnet.NewPublisher(ps.publisherConfig.PublisherConfig, ps.publisherConfig.WaitAck)
+	p, err := watermillnet.NewPublisher(ps.config.PublisherConfig, ps.config.WaitAck)
 	if err != nil {
 		return nil, err
 	}
 
 	ps.pub = p
 
-	s, err := watermillnet.NewSubscriber(ps.subscriberConfig.SubscriberConfig)
+	s, err := watermillnet.NewSubscriber(ps.config.SubscriberConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -69,9 +69,20 @@ func (nps *NetPubSub) RunAsServer(network, listerAddr string) error {
 		return errors.New("net pub/sub already started")
 	}
 
-	l, err := ListenerFactory(network, listerAddr)
-	if err != nil {
-		return err
+	var l watermillnet.Listener
+
+	var err error
+
+	if nps.config.TlsConfig != nil {
+		l, err = ListenerTlsFactory(network, listerAddr, nps.config.TlsConfig)
+		if err != nil {
+			return err
+		}
+	} else {
+		l, err = ListenerFactory(network, listerAddr)
+		if err != nil {
+			return err
+		}
 	}
 
 	err = nps.sub.Connect(l)
@@ -83,6 +94,8 @@ func (nps *NetPubSub) RunAsServer(network, listerAddr string) error {
 	if err != nil {
 		return err
 	}
+
+	conn = connection.NewReconnectListenerWrapper(context.Background(), conn, nps.config.Log, nps.config.RWTimeout, l)
 
 	nps.pub.SetConnection(conn)
 
@@ -98,7 +111,13 @@ func (nps *NetPubSub) RunAsClient(network, remoteAddr string) error {
 		return errors.New("net pub/sub already started")
 	}
 
-	conn := ConnectionFactory(network, nps.publisherConfig.KeepAlive, nps.publisherConfig.ReconnectionConfig)
+	var conn watermillnet.Connection
+
+	if nps.config.TlsConfig != nil {
+		conn = ConnectionTlsFactory(network, nps.config.KeepAlive, nps.config.ReconnectionConfig, nps.config.TlsConfig)
+	} else {
+		conn = ConnectionFactory(network, nps.config.KeepAlive, nps.config.ReconnectionConfig)
+	}
 
 	addr, err := ResolveAddr(network, remoteAddr)
 	if err != nil {
@@ -117,6 +136,8 @@ func (nps *NetPubSub) RunAsClient(network, remoteAddr string) error {
 	if err != nil {
 		return err
 	}
+
+	nps.started = true
 
 	return nil
 }

@@ -1,7 +1,7 @@
 package netpubsub
 
 import (
-	"net"
+	"crypto/tls"
 
 	watermillnet "github.com/andyollylarkin/watermill-net"
 	"github.com/andyollylarkin/watermill-net/pkg/connection"
@@ -10,12 +10,16 @@ import (
 func ListenerFactory(network, listenAddr string) (watermillnet.Listener, error) {
 	switch network {
 	case "tcp4":
-		l, err := net.Listen(network, listenAddr)
-		if err != nil {
-			return nil, err
-		}
+		return connection.NewTCP4Listener(listenAddr)
+	default:
+		panic("not implemented listener")
+	}
+}
 
-		return connection.NewTCP4Listener(l), nil
+func ListenerTlsFactory(network, listenAddr string, conf *tls.Config) (watermillnet.Listener, error) {
+	switch network {
+	case "tcp4":
+		return connection.NewTCP4TlsListener(listenAddr, conf)
 	default:
 		panic("not implemented listener")
 	}

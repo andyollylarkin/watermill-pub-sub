@@ -2,6 +2,7 @@ package netpubsub
 
 import (
 	"context"
+	"crypto/tls"
 	"net"
 	"time"
 
@@ -19,16 +20,14 @@ type ReconnectionConfig struct {
 	RWTimeout  time.Duration
 }
 
-
-
 func ConnectionFactory(netType string, keepAlive time.Duration, rConfig *ReconnectionConfig) watermillnet.Connection {
 	switch netType {
 	case Tcp4:
 		var conn watermillnet.Connection
-		conn = connection.NewTCPConnection(net.Dialer{}, keepAlive)
+		conn = connection.NewTCPConnection(keepAlive)
 
 		if rConfig != nil {
-			conn = reconnectionWrapper(rConfig, conn)
+			conn = ReconnectionWrapper(rConfig, conn)
 		}
 
 		return conn
@@ -37,7 +36,24 @@ func ConnectionFactory(netType string, keepAlive time.Duration, rConfig *Reconne
 	}
 }
 
-func reconnectionWrapper(rConfig *ReconnectionConfig, baseConn watermillnet.Connection) watermillnet.Connection {
+func ConnectionTlsFactory(netType string, keepAlive time.Duration, rConfig *ReconnectionConfig,
+	conf *tls.Config) watermillnet.Connection {
+	switch netType {
+	case Tcp4:
+		var conn watermillnet.Connection
+		conn = connection.NewTCPTlsConnection(keepAlive, conf)
+
+		if rConfig != nil {
+			conn = ReconnectionWrapper(rConfig, conn)
+		}
+
+		return conn
+	default:
+		panic("not implemented yet")
+	}
+}
+
+func ReconnectionWrapper(rConfig *ReconnectionConfig, baseConn watermillnet.Connection) watermillnet.Connection {
 	wConn := connection.NewReconnectWrapper(rConfig.Ctx, baseConn, rConfig.Backoff, rConfig.Log, rConfig.RemoteAddr,
 		rConfig.ErrFilter, rConfig.RWTimeout)
 

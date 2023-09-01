@@ -2,36 +2,48 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"log"
 	"time"
 
+	"github.com/ThreeDotsLabs/watermill"
 	"github.com/ThreeDotsLabs/watermill/message"
 	watermillnet "github.com/andyollylarkin/watermill-net"
 	wmnetPkg "github.com/andyollylarkin/watermill-net/pkg"
+	connectionhelpers "github.com/andyollylarkin/watermill-net/pkg/helpers/connectionHelpers"
 	watermillpubsub "github.com/andyollylarkin/watermill-pub-sub"
 	netpubsub "github.com/andyollylarkin/watermill-pub-sub/pkg/netPubSub"
 )
 
 func main() {
-	// logger := watermill.NewStdLogger(true, true)
-	sConfig := netpubsub.SubscriberConfig{
-		SubscriberConfig: watermillnet.SubscriberConfig{
-			Marshaler:   wmnetPkg.MessagePackMarshaler{},
-			Unmarshaler: wmnetPkg.MessagePackUnmarshaler{},
-			// Logger:      logger,
-		},
+	logger := watermill.NewStdLogger(true, true)
+
+	cert, err := connectionhelpers.LoadCerts("/home/denis/Desktop/local.test.ru.crt",
+		"/home/denis/Desktop/local.test.ru.key")
+	if err != nil {
+		log.Fatal(err)
 	}
-	pConfig := netpubsub.PublisherConfig{
-		KeepAlive: time.Minute * 1,
-		WaitAck:   false,
+
+	config := netpubsub.Config{
 		PublisherConfig: watermillnet.PublisherConfig{
 			Marshaler:   wmnetPkg.MessagePackMarshaler{},
 			Unmarshaler: wmnetPkg.MessagePackUnmarshaler{},
-			// Logger:      logger,
+			Logger:      logger,
 		},
+		SubscriberConfig: watermillnet.SubscriberConfig{
+			Marshaler:   wmnetPkg.MessagePackMarshaler{},
+			Unmarshaler: wmnetPkg.MessagePackUnmarshaler{},
+			Logger:      logger,
+		},
+		TlsConfig: &tls.Config{
+			Certificates: cert,
+		},
+		Log: logger,
+		RWTimeout: time.Second*5,
 	}
-	nps, err := netpubsub.NewNetPubSub(pConfig, sConfig)
+
+	nps, err := netpubsub.NewNetPubSub(config)
 
 	if err != nil {
 		log.Fatal(err)
